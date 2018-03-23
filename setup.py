@@ -79,7 +79,7 @@ if sys.argv[-1] == 'publish':
     os.system('python setup.py sdist upload')
     os.system('python setup.py bdist_wheel upload')
     print('You probably want to also tag the version now:')
-    print('  git tag -a {0} -m 'version {0}''.format(version))
+    print(" git tag -a {0} -m 'version {0}'".format(version))
     print('  git push --tags')
     sys.exit()
 
