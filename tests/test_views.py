@@ -2,15 +2,14 @@
 @author: rahul
 '''
 import json
+from time import sleep
 
 from django.http.response import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from time import sleep
 
 
 class SimpleView(View):
-
     '''
         A simple view with dummy implementation for all the methods.
         The view is only intended to be used for testing.
@@ -20,38 +19,39 @@ class SimpleView(View):
         '''
             Handles GET requests.
         '''
-        return HttpResponse("Success!")
+        return HttpResponse('Success!')
 
     def post(self, request):
         '''
             Handles POST requests.
             This implementation just echos back the data coming in.
         '''
-        return HttpResponse(status=201, content=request.body)
+        data = json.loads(request.body, encoding='utf-8')
+        return HttpResponse(status=201, content=data)
 
     def put(self, request):
         '''
             Handles PUT requests
         '''
         # Imaginary current view of data.
-        data = {"method": "PUT", "status": 202, "text": "Updated"}
-        data.update(json.loads(request.body))
-        return HttpResponse(status=202, content=json.dumps(data))
+        data = {'method': 'PUT', 'status': 202, 'text': 'Updated'}
+        data.update(json.loads(request.body, encoding='utf-8'))
+        return HttpResponse(status=202, content=data)
 
     def patch(self, request):
         '''
             Handles PATCH requests
         '''
         # Imaginary current view of data.
-        data = {"method": "PUT", "status": 202, "text": "Updated"}
-        data.update(json.loads(request.body))
-        return HttpResponse(status=202, content=json.dumps(data))
+        data = {'method': 'PATCH', 'status': 202, 'text': 'Updated'}
+        data.update(json.loads(request.body, encoding='utf-8'))
+        return HttpResponse(status=202, content=data)
 
     def delete(self, request):
         '''
             Handles delete requests
         '''
-        return HttpResponse(status=202, content="No Content!")
+        return HttpResponse(status=202, content='No Content!')
 
     def head(self, request):
         '''
@@ -68,7 +68,6 @@ class SimpleView(View):
 
 
 class EchoHeaderView(View):
-
     '''
         Echos back the header value.
     '''
@@ -78,7 +77,7 @@ class EchoHeaderView(View):
             Handles the get request.
         '''
         # Lookup for the header client is requesting for.
-        header = request.GET.get("header", None)
+        header = request.GET.get('header', None)
 
         # Get the value for the associated header.
         value = getattr(request, header, None)
@@ -97,7 +96,6 @@ class EchoHeaderView(View):
 
 
 class ExceptionView(View):
-
     '''
         Views that raises exception for testing purpose.
     '''
@@ -106,11 +104,10 @@ class ExceptionView(View):
         '''
             Handles the get request.
         '''
-        raise Exception("exception")
+        raise Exception('exception')
 
 
 class SleepingView(View):
-
     '''
         Make the current thread sleep for the number of seconds passed.
         This is to mimic the long running services.
@@ -121,9 +118,9 @@ class SleepingView(View):
             Handles the get request.
         '''
         # Lookup for the duration to sleep.
-        seconds = int(request.GET.get("seconds", "5"))
+        seconds = int(request.GET.get('seconds', '5'))
 
         # Make the current thread sleep for the specified duration.
         sleep(seconds)
         # Make the current thread sleep.
-        return HttpResponse("Success!")
+        return HttpResponse('Success!')

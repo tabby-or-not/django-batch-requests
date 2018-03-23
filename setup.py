@@ -1,13 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import os
 import sys
 
+from setuptools import Command, setup
+
 import batch_requests
 
-from setuptools import setup
-from setuptools import setup, Command
 
 class PyTest(Command):
     '''
@@ -30,7 +30,11 @@ name = 'django-batch-requests'
 version = batch_requests.__version__
 package = 'batch_requests'
 description = 'Create batch APIs for Django.'
-long_description = 'Django batch requests allow developers to combine multiple http requests into a single batch request. This is essentially useful to avoid making multiple http requests to save on round trip network latency.'
+long_description = (
+    'Django batch requests allow developers to combine multiple http requests' +
+    ' into a single batch request. This is essentially useful to avoid making multiple' +
+    ' http requests to save on round trip network latency.'
+)
 url = 'https://github.com/tanwanirahul/django-batch-requests'
 author = 'Rahul Tanwani'
 author_email = 'tanwanirahul@gmail.com'
@@ -39,27 +43,27 @@ install_requires = []
 
 
 def read(*paths):
-    """
+    '''
     Build a file path from paths and return the contents.
-    """
+    '''
     with open(os.path.join(*paths), 'r') as f:
         return f.read()
 
 
 def get_packages(package):
-    """
+    '''
     Return root package and all sub-packages.
-    """
+    '''
     return [dirpath
             for dirpath, dirnames, filenames in os.walk(package)
             if os.path.exists(os.path.join(dirpath, '__init__.py'))]
 
 
 def get_package_data(package):
-    """
+    '''
     Return all files under the root package, that are not in a
     package themselves.
-    """
+    '''
     walk = [(dirpath.replace(package + os.sep, '', 1), filenames)
             for dirpath, dirnames, filenames in os.walk(package)
             if not os.path.exists(os.path.join(dirpath, '__init__.py'))]
@@ -72,11 +76,11 @@ def get_package_data(package):
 
 
 if sys.argv[-1] == 'publish':
-    os.system("python setup.py sdist upload")
-    os.system("python setup.py bdist_wheel upload")
-    print("You probably want to also tag the version now:")
-    print("  git tag -a {0} -m 'version {0}'".format(version))
-    print("  git push --tags")
+    os.system('python setup.py sdist upload')
+    os.system('python setup.py bdist_wheel upload')
+    print('You probably want to also tag the version now:')
+    print('  git tag -a {0} -m 'version {0}''.format(version))
+    print('  git push --tags')
     sys.exit()
 
 
@@ -101,8 +105,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
         'Topic :: Internet :: WWW/HTTP'
     ]
 )

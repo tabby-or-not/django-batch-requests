@@ -5,13 +5,11 @@
 '''
 import json
 
-from django.test import TestCase
-
 from batch_requests.settings import br_settings as settings
+from django.test import TestCase
 
 
 class TestBase(TestCase):
-
     '''
         Base class for all reusable test methods.
     '''
@@ -24,8 +22,9 @@ class TestBase(TestCase):
         # Remove duration header to compare.
         if settings.ADD_DURATION_HEADER:
             del batch_resp['headers'][settings.DURATION_HEADER_NAME]
+            del batch_resp['headers']['request_url']
 
-        self.assertDictEqual(ind_resp, batch_resp, "Compatibility is broken!")
+        self.assertDictEqual(ind_resp, batch_resp, 'Compatibility is broken!')
 
     def headers_dict(self, headers):
         '''
@@ -37,25 +36,28 @@ class TestBase(TestCase):
         '''
             Returns a dict of all the parameters.
         '''
-        return {"status_code": status_code, "body": json.loads(body, encoding='utf-8'), "headers": self.headers_dict(headers)}
+        return {
+            'status_code': status_code,
+            'body': body.decode('utf-8'),
+            'headers': self.headers_dict(headers),
+        }
 
     def _batch_request(self, method, path, data, headers={}):
         '''
             Prepares a batch request.
         '''
-        return {"url": path, "method": method, "headers": headers, "body": data}
+        return {'url': path, 'method': method, 'headers': headers, 'body': data}
 
-    def make_a_batch_request(self, method, url, body, headers={}):
+    def make_a_batch_request(self, *args):
         '''
             Makes a batch request using django client.
         '''
-        return self.client.post("/api/v1/batch/", json.dumps({'batch': [self._batch_request(method, url, body, headers)]}),
-                                content_type="application/json")
+        batch_request = json.dumps({'batch': [self._batch_request(*args)]})
+        return self.client.post('/api/v1/batch/', batch_request, content_type='application/json')
 
     def make_multiple_batch_request(self, requests):
         '''
             Makes multiple batch request using django client.
         '''
-        batch_requests = [self._batch_request(method, path, data, headers) for method, path, data, headers in requests]
-        return self.client.post("/api/v1/batch/", json.dumps({'batch': batch_requests}),
-                                content_type="application/json")
+        batch_requests = json.dumps({'batch': [self._batch_request(*args) for args in requests]})
+        return self.client.post('/api/v1/batch/', batch_requests, content_type='application/json')

@@ -13,7 +13,6 @@ from batch_requests.utils import get_wsgi_request_object
 from django.http import Http404
 from django.http.response import (HttpResponse, HttpResponseBadRequest,
                                   HttpResponseServerError)
-from django.template.response import ContentNotRenderedError
 from django.urls import resolve
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -39,6 +38,7 @@ def withDebugHeaders(view_handler):
             'request_url': wsgi_request.path_info,
             _settings.DURATION_HEADER_NAME: time_taken,
         })
+        return result
     return inner
 
 
@@ -59,26 +59,30 @@ def get_response(wsgi_request):
     try:
         response = view(*args, **kwargs)
     except Exception as exc:
-        # On error, convert HTTP response into simple dict type.
         response = HttpResponseServerError(content=str(exc))
-        return {
-            'status_code': response.status_code,
-            'reason_phrase': response.reason_phrase,
-            'headers': dict(response._headers.values()),
-        }
+
+    # Convert HTTP response into simple dict type.
+    result = {
+        'status_code': response.status_code,
+        'reason_phrase': response.reason_phrase,
+        'headers': dict(response._headers.values()),
+    }
 
     # Make sure that the response has been rendered
-    if not hasattr(response, 'render') and not callable(response.render):
-        body = response.content
-    else:
-        # Otherwise we render it and convert it to JSON
+    if hasattr(response, 'render') and callable(response.render):
         response.render()
-        try:
-            body = json.loads(response.content, encoding='utf-8')
-        except json.JSONDecodeError:
-            body = response.content.decode('utf-8')
 
-    return {'body': body}
+    content = response.content
+    if isinstance(content, bytes):
+        content = content.decode('utf-8')
+
+    try:
+        content = json.loads(content)
+    except json.JSONDecodeError:
+        pass
+
+    result['body'] = content
+    return result
 
 
 def get_wsgi_requests(request):
@@ -86,41 +90,43 @@ def get_wsgi_requests(request):
         For the given batch request, extract the individual requests and create
         WSGIRequest object for each.
     '''
-    valid_http_methods = ["get", "post", "put", "patch", "delete", "head", "options", "connect", "trace"]
+    valid_http_methods = [
+        'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'connect', 'trace'
+    ]
     requests = json.loads(request.body).get('batch', [])
 
     if type(requests) not in (list, tuple):
-        raise BadBatchRequest("The body of batch request should always be list!")
+        raise BadBatchRequest('The body of batch request should always be list!')
 
     # Max limit check.
     no_requests = len(requests)
 
     if no_requests > _settings.MAX_LIMIT:
-        raise BadBatchRequest("You can batch maximum of %d requests." % (_settings.MAX_LIMIT))
+        raise BadBatchRequest('You can batch maximum of %d requests.' % (_settings.MAX_LIMIT))
 
-    # We could mutate the current request with the respective parameters, but mutation is ghost in the dark,
-    # so lets avoid. Construct the new WSGI request object for each request.
+    # We could mutate the current request with the respective parameters, but mutation is ghost
+    # in the dark, so lets avoid. Construct the new WSGI request object for each request.
 
     def construct_wsgi_from_data(data):
         '''
             Given the data in the format of url, method, body and headers, construct a new
             WSGIRequest object.
         '''
-        url = data.get("url", None)
-        method = data.get("method", None)
+        url = data.get('url', None)
+        method = data.get('method', None)
 
         if url is None or method is None:
-            raise BadBatchRequest("Request definition should have url, method defined.")
+            raise BadBatchRequest('Request definition should have url, method defined.')
 
         if method.lower() not in valid_http_methods:
-            raise BadBatchRequest("Invalid request method.")
+            raise BadBatchRequest('Invalid request method.')
 
         body = None
 
         if method.lower() not in ['get', 'options']:
-            body = data.get("body", "")
+            body = data.get('body', '')
 
-        headers = data.get("headers", {})
+        headers = data.get('headers', {})
         return get_wsgi_request_object(request, method, url, headers, body)
 
     return [construct_wsgi_from_data(data) for data in requests]
@@ -136,7 +142,7 @@ def execute_requests(wsgi_requests):
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(['POST'])
 def handle_batch_requests(request, *args, **kwargs):
     '''
         A view function to handle the overall processing of batch requests.
@@ -152,8 +158,11 @@ def handle_batch_requests(request, *args, **kwargs):
     response = execute_requests(wsgi_requests)
 
     # Evrything's done, return the response.
-    resp = HttpResponse(content=json.dumps(response), content_type="application/json")
+    resp = HttpResponse(content=json.dumps(response), content_type='application/json')
 
     if _settings.ADD_DURATION_HEADER:
-        resp.__setitem__(_settings.DURATION_HEADER_NAME, str((datetime.now() - batch_start_time).microseconds / 1000))
+        resp.__setitem__(
+            _settings.DURATION_HEADER_NAME,
+            str((datetime.now() - batch_start_time).microseconds / 1000)
+        )
     return resp

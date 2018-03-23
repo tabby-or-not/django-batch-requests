@@ -4,20 +4,21 @@
 @summary: Contains the default settings.
 '''
 
-from django.conf import settings
 import multiprocessing
 from importlib import import_module
 
+from django.conf import settings
+
 DEFAULTS = {
-    "HEADERS_TO_INCLUDE": ["HTTP_USER_AGENT", "HTTP_COOKIE"],
-    "DEFAULT_CONTENT_TYPE": "application/json",
-    "USE_HTTPS": False,
-    "EXECUTE_PARALLEL": False,
-    "CONCURRENT_EXECUTOR": "batch_requests.concurrent.executor.ThreadBasedExecutor",
-    "NUM_WORKERS": multiprocessing.cpu_count() * 4,
-    "ADD_DURATION_HEADER": True,
-    "DURATION_HEADER_NAME": "batch_requests.duration",
-    "MAX_LIMIT": 20
+    'HEADERS_TO_INCLUDE': ['HTTP_USER_AGENT', 'HTTP_COOKIE'],
+    'DEFAULT_CONTENT_TYPE': 'application/json',
+    'USE_HTTPS': False,
+    'EXECUTE_PARALLEL': False,
+    'CONCURRENT_EXECUTOR': 'batch_requests.concurrent.executor.ThreadBasedExecutor',
+    'NUM_WORKERS': multiprocessing.cpu_count() * 4,
+    'ADD_DURATION_HEADER': True,
+    'DURATION_HEADER_NAME': 'batch_requests.duration',
+    'MAX_LIMIT': 20
 }
 
 
@@ -28,7 +29,7 @@ def import_class(class_path):
     '''
         Imports the class for the given class name.
     '''
-    module_name, class_name = class_path.rsplit(".", 1)
+    module_name, class_name = class_path.rsplit('.', 1)
     module = import_module(module_name)
     claz = getattr(module, class_name)
     return claz
@@ -47,10 +48,11 @@ class BatchRequestSettings(object):
 
     def _executor(self):
         '''
-            Creating an ExecutorPool is a costly operation. Executor needs to be instantiated only once.
+            Creating an ExecutorPool is a costly operation.
+            Executor needs to be instantiated only once.
         '''
         if self.EXECUTE_PARALLEL is False:
-            executor_path = "batch_requests.concurrent.executor.SequentialExecutor"
+            executor_path = 'batch_requests.concurrent.executor.SequentialExecutor'
             executor_class = import_class(executor_path)
             return executor_class()
         else:
