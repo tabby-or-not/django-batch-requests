@@ -33,7 +33,7 @@ def pytest_configure():
         PASSWORD_HASHERS=(
             'django.contrib.auth.hashers.MD5PasswordHasher',
         ),
-        BATCH_REQUESTS = {
+        BATCH_REQUESTS={
             "HEADERS_TO_INCLUDE": ["HTTP_USER_AGENT", "HTTP_COOKIE"],
             "DEFAULT_CONTENT_TYPE": "application/xml",
             "USE_HTTPS": True,

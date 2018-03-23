@@ -48,7 +48,7 @@ def is_class(string):
     return string[0] == string[0].upper()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
         sys.argv.remove('--nolint')
     except ValueError:
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         pytest_args = PYTEST_ARGS[style]
 
     if run_tests:
-        print("Running tests...")
+        print('Running tests...')
         exit_on_failure(pytest.main(pytest_args))
     if run_flake8:
         exit_on_failure(flake8_main(FLAKE8_ARGS))

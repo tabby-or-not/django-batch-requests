@@ -4,8 +4,9 @@ Created on Feb 20, 2016
 @author: Rahul Tanwani
 '''
 from abc import ABCMeta
-from concurrent.futures.thread import ThreadPoolExecutor
+
 from concurrent.futures.process import ProcessPoolExecutor
+from concurrent.futures.thread import ThreadPoolExecutor
 
 
 class Executor(object):
@@ -18,7 +19,10 @@ class Executor(object):
         '''
             Calls the resp_generator for all the requests in parallel in an asynchronous way.
         '''
-        result_futures = [self.executor_pool.submit(resp_generator, req, *args, **kwargs) for req in requests]
+        result_futures = [
+            self.executor_pool.submit(resp_generator, req, *args, **kwargs)
+            for req in requests
+        ]
         resp = [res_future.result() for res_future in result_futures]
         return resp
 

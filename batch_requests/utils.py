@@ -5,9 +5,8 @@
 '''
 import json
 
-from django.test.client import FakePayload, RequestFactory
-
 from batch_requests.settings import br_settings as _settings
+from django.test.client import FakePayload, RequestFactory
 
 
 class BatchRequestFactory(RequestFactory):
@@ -27,15 +26,15 @@ class BatchRequestFactory(RequestFactory):
 
         environ = {
             'HTTP_COOKIE': self.cookies.output(header='', sep='; '),
-            'PATH_INFO': str('/'),
-            'REMOTE_ADDR': str('127.0.0.1'),
-            'REQUEST_METHOD': str('GET'),
-            'SCRIPT_NAME': str(''),
-            'SERVER_NAME': str('localhost'),
-            'SERVER_PORT': str('8000'),
-            'SERVER_PROTOCOL': str('HTTP/1.1'),
+            'PATH_INFO': '/',
+            'REMOTE_ADDR': '127.0.0.1',
+            'REQUEST_METHOD': 'GET',
+            'SCRIPT_NAME': '',
+            'SERVER_NAME': 'localhost',
+            'SERVER_PORT': '8000',
+            'SERVER_PROTOCOL': 'HTTP/1.1',
             'wsgi.version': (1, 0),
-            'wsgi.url_scheme': str('http'),
+            'wsgi.url_scheme': 'http',
             'wsgi.input': FakePayload(b''),
             'wsgi.errors': self.errors,
             'wsgi.multiprocess': True,
@@ -55,9 +54,9 @@ def pre_process_method_headers(method, headers):
     method = method.lower()
 
     # Standard WSGI supported headers
-    _wsgi_headers = ["content_length", "content_type", "query_string",
-                     "remote_addr", "remote_host", "remote_user",
-                     "request_method", "server_name", "server_port"]
+    _wsgi_headers = ['content_length', 'content_type', 'query_string',
+                     'remote_addr', 'remote_host', 'remote_user',
+                     'request_method', 'server_name', 'server_port']
 
     _transformed_headers = {}
 
@@ -65,8 +64,8 @@ def pre_process_method_headers(method, headers):
     # to upper case.
     for header, value in headers.items():
 
-        header = header.replace("-", "_")
-        header = "http_{header}".format(
+        header = header.replace('-', '_')
+        header = 'http_{header}'.format(
             header=header) if header.lower() not in _wsgi_headers else header
         _transformed_headers.update({header.upper(): value})
 
@@ -89,18 +88,16 @@ def get_wsgi_request_object(curr_request, method, url, headers, body):
     method, t_headers = pre_process_method_headers(method, headers)
 
     # Add default content type.
-    if "CONTENT_TYPE" not in t_headers:
-        t_headers.update({"CONTENT_TYPE": _settings.DEFAULT_CONTENT_TYPE})
+    if 'CONTENT_TYPE' not in t_headers:
+        t_headers.update({'CONTENT_TYPE': _settings.DEFAULT_CONTENT_TYPE})
 
     # Override existing batch requests headers with the new headers passed for this request.
     x_headers.update(t_headers)
-    content_type = x_headers.get("CONTENT_TYPE", _settings.DEFAULT_CONTENT_TYPE)
+    content_type = x_headers.get('CONTENT_TYPE', _settings.DEFAULT_CONTENT_TYPE)
 
     # Get hold of request factory to construct the request.
     _request_factory = BatchRequestFactory()
     _request_provider = getattr(_request_factory, method)
-
-    secure = _settings.USE_HTTPS
 
     data = body
     if data:
@@ -110,7 +107,15 @@ def get_wsgi_request_object(curr_request, method, url, headers, body):
         if 'CONTENT_LENGTH' in x_headers:
             x_headers.pop('CONTENT_LENGTH')
 
-    request = _request_provider(url, data=data, secure=secure,
-                                content_type=content_type, **x_headers)
-    request.user = curr_request.user
+    request = _request_provider(
+        url,
+        data=data,
+        secure=_settings.USE_HTTPS,
+        content_type=content_type,
+        **x_headers
+    )
+
+    if hasattr(curr_request, 'user'):
+        request.user = curr_request.user
+
     return request
