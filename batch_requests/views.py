@@ -7,6 +7,7 @@
 import json
 from datetime import datetime
 
+from django.db import transaction
 from django.http import Http404
 from django.http.response import (HttpResponse, HttpResponseBadRequest,
                                   HttpResponseServerError)
@@ -146,32 +147,40 @@ def get_wsgi_requests(request):
     return [construct_wsgi_from_data(request, data) for data in requests]
 
 
+def is_error(code):
+    ''' Check if HTTP status code is error (from django-rest-framework)'''
+    return 400 <= code <= 599
+
+
 def execute_requests(request, sequential_override=False):
     '''
         Execute the requests either sequentially or in parallel based on parallel
         execution setting.
     '''
     if sequential_override:
-        next_variables = {}
-        results = []
-        # Get the data to make the requests
-        requests = get_requests_data(request)
-        for request_data in requests:
-            # Generate the requests using additional data if passed
-            wsgi_request, onward_params = construct_wsgi_from_data(request, request_data, replace_params=next_variables)
-            result = get_response(wsgi_request)
-            results.append(result)
-            # Take the value of any onward passing variables from the response
-            for name, accessor_string in onward_params.items():
-                value = None
-                # Allow retrieval of nested values using dot notaion
-                accessors = accessor_string.split('.')
-                if len(accessors):
-                    value = result['body']
-                for accessor in accessors:
-                    value = value[accessor]
-                if value:
-                    next_variables[name] = value
+        with transaction.atomic():
+            next_variables = {}
+            results = []
+            # Get the data to make the requests
+            requests = get_requests_data(request)
+            for request_data in requests:
+                # Generate the requests using additional data if passed
+                wsgi_request, onward_params = construct_wsgi_from_data(request, request_data, replace_params=next_variables)
+                result = get_response(wsgi_request)
+                results.append(result)
+                if is_error(result['status_code']):
+                    raise BadBatchRequest(result['reason_phrase'])
+                # Take the value of any onward passing variables from the response
+                for name, accessor_string in onward_params.items():
+                    value = None
+                    # Allow retrieval of nested values using dot notaion
+                    accessors = accessor_string.split('.')
+                    if len(accessors):
+                        value = result['body']
+                    for accessor in accessors:
+                        value = value[accessor]
+                    if value:
+                        next_variables[name] = value
         return results
     else:
         try:
@@ -193,7 +202,10 @@ def handle_batch_requests(request, *args, **kwargs):
 
     # Generate and fire these WSGI requests, and collect the responses
     sequential_override = kwargs.pop('run_sequential', False)
-    response = execute_requests(request, sequential_override)
+    try:
+        response = execute_requests(request, sequential_override)
+    except BadBatchRequest as brx:
+        return HttpResponseBadRequest(content=str(brx))
 
     # Evrything's done, return the response.
     resp = HttpResponse(content=json.dumps(response), content_type='application/json')
