@@ -163,13 +163,17 @@ def execute_requests(request, sequential_override=False):
             results = []
             # Get the data to make the requests
             requests = get_requests_data(request)
-            for request_data in requests:
+            for i, request_data in enumerate(requests):
                 # Generate the requests using additional data if passed
                 wsgi_request, onward_params = construct_wsgi_from_data(request, request_data, replace_params=next_variables)
                 result = get_response(wsgi_request)
                 results.append(result)
                 if is_error(result['status_code']):
-                    raise BadBatchRequest(result['reason_phrase'])
+                    raise BadBatchRequest(
+                        f"Sequential requests failed for request at index {i}: " +
+                        f"({result['reason_phrase']}) {result['body']['errors']['detail']} " +
+                        "All requests have been reverted."
+                    )
                 # Take the value of any onward passing variables from the response
                 for name, accessor_string in onward_params.items():
                     value = None
