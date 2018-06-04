@@ -7,17 +7,17 @@
 import json
 from datetime import datetime
 
+from batch_requests.exceptions import BadBatchRequest
+from batch_requests.jsonapi import JsonApiRewriter
+from batch_requests.settings import br_settings as _settings
+from batch_requests.utils import get_wsgi_request_object
+
 from django.db import transaction
 from django.http import Http404
-from django.http.response import (HttpResponse, HttpResponseBadRequest,
-                                  HttpResponseServerError)
+from django.http.response import HttpResponse, HttpResponseBadRequest, HttpResponseServerError
 from django.urls import resolve
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-
-from batch_requests.exceptions import BadBatchRequest
-from batch_requests.settings import br_settings as _settings
-from batch_requests.utils import get_wsgi_request_object
 
 
 def withDebugHeaders(view_handler):
@@ -26,6 +26,15 @@ def withDebugHeaders(view_handler):
         to which it adds a header item containing information about time taken and request url.
     '''
     def inner(wsgi_request):
+
+        # We now always get a tuple for the WSGI request object, the
+        # first element is the request, the second is the onward
+        # variables.
+        # TODO: I think we can conver the onward variables implementation
+        #  to a different rewriter.
+        if isinstance(wsgi_request, tuple):
+            wsgi_request, onward_variables = wsgi_request
+
         service_start_time = datetime.now()
         result = view_handler(wsgi_request)
 
@@ -87,7 +96,7 @@ def get_response(wsgi_request):
     return result
 
 
-def construct_wsgi_from_data(request, data, replace_params={}):
+def construct_wsgi_from_data(request, data, replace_params={}, rewriter=None):
     '''
     Given the data in the format of url, method, body and headers, construct a new
     WSGIRequest object.
@@ -95,6 +104,10 @@ def construct_wsgi_from_data(request, data, replace_params={}):
     valid_http_methods = [
         'get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'connect', 'trace'
     ]
+
+    if rewriter:
+        rewriter.rewrite_request(data)
+
     url = data.get('url', None)
     method = data.get('method', None)
 
@@ -105,7 +118,6 @@ def construct_wsgi_from_data(request, data, replace_params={}):
         raise BadBatchRequest('Invalid request method.')
 
     body = None
-
     if method.lower() not in ['get', 'options']:
         body = data.get('body', '')
         for name, value in replace_params.items():
@@ -158,6 +170,13 @@ def execute_requests(request, sequential_override=False):
         execution setting.
     '''
     if sequential_override:
+
+        # We have to choose a rewriter before we begin processing requests as
+        # each request can add new mappings to the rewriter. By default we'll
+        # use a JSON-API rewriter, but in the future we may want to make this
+        # more dynamic.
+        rewriter = JsonApiRewriter()
+
         with transaction.atomic():
             next_variables = {}
             results = []
@@ -165,14 +184,22 @@ def execute_requests(request, sequential_override=False):
             requests = get_requests_data(request)
             for i, request_data in enumerate(requests):
                 # Generate the requests using additional data if passed
-                wsgi_request, onward_params = construct_wsgi_from_data(request, request_data, replace_params=next_variables)
+                wsgi_request, onward_params = construct_wsgi_from_data(
+                    request,
+                    request_data,
+                    replace_params=next_variables,
+                    rewriter=rewriter
+                )
                 result = get_response(wsgi_request)
+
+                # Add the response to the rewriter.
+                rewriter.update_mapping(request_data, result)
+
                 results.append(result)
                 if is_error(result['status_code']):
                     raise BadBatchRequest(
-                        f"Sequential requests failed for request at index {i}: " +
-                        f"({result['reason_phrase']}) {result['body']['errors']['detail']} " +
-                        "All requests have been reverted."
+                        f'Sequential requests failed for request at index {i}: ' +
+                        json.dumps(result['body'])
                     )
                 # Take the value of any onward passing variables from the response
                 for name, accessor_string in onward_params.items():
@@ -220,3 +247,7 @@ def handle_batch_requests(request, *args, **kwargs):
             str((datetime.now() - batch_start_time).microseconds / 1000)
         )
     return resp
+
+
+def handle_sequential_batch_requests(request, *args, **kwargs):
+    return handle_batch_requests(request, *args, run_sequential=True, **kwargs)
