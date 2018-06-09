@@ -79,6 +79,14 @@ def get_response(wsgi_request):
         'headers': dict(response._headers.values()),
     }
 
+    # There's some kind of bug here where JSON-API calls are getting
+    # their content-type changed to "text/html". This interferes with
+    # clients detecting and decoding properly. If the request is in
+    # JSON-API, so too shall be the response.
+    # TODO: Figure out what's going on here.
+    if wsgi_request.content_type.startswith('application/vnd.api+json'):
+        result['headers']['Content-Type'] = 'application/vnd.api+json'
+
     # Make sure that the response has been rendered
     if hasattr(response, 'render') and callable(response.render):
         response.render()
