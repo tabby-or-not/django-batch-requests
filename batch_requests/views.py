@@ -11,10 +11,10 @@ from batch_requests.exceptions import BadBatchRequest
 from batch_requests.jsonapi import JsonApiRewriter
 from batch_requests.settings import br_settings as _settings
 from batch_requests.utils import get_wsgi_request_object
-
 from django.db import transaction
 from django.http import Http404
-from django.http.response import HttpResponse, HttpResponseBadRequest, HttpResponseServerError
+from django.http.response import (HttpResponse, HttpResponseBadRequest,
+                                  HttpResponseServerError)
 from django.urls import resolve
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -191,27 +191,28 @@ def execute_requests(request, sequential_override=False):
                     rewriter=rewriter
                 )
                 result = get_response(wsgi_request)
-
-                # Add the response to the rewriter.
-                rewriter.update_mapping(request_data, result)
-
                 results.append(result)
                 if is_error(result['status_code']):
                     raise BadBatchRequest(
                         f'Sequential requests failed for request at index {i}: ' +
                         json.dumps(result['body'])
                     )
-                # Take the value of any onward passing variables from the response
-                for name, accessor_string in onward_params.items():
-                    value = None
-                    # Allow retrieval of nested values using dot notaion
-                    accessors = accessor_string.split('.')
-                    if len(accessors):
-                        value = result['body']
-                    for accessor in accessors:
-                        value = value[accessor]
-                    if value:
-                        next_variables[name] = value
+
+                # Add the response to the rewriter.
+                if i < len(requests):
+                    rewriter.update_mapping(request_data, result)
+
+                    # Take the value of any onward passing variables from the response
+                    for name, accessor_string in onward_params.items():
+                        value = None
+                        # Allow retrieval of nested values using dot notaion
+                        accessors = accessor_string.split('.')
+                        if len(accessors):
+                            value = result['body']
+                        for accessor in accessors:
+                            value = value[accessor]
+                        if value:
+                            next_variables[name] = value
         return results
     else:
         try:
