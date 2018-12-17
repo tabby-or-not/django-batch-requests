@@ -70,7 +70,10 @@ class JsonApiRewriter:
             return
         req_data = req_body.get('data', {})
         rsp_data = rsp_body.get('data', {})
-        self.mapping.setdefault(req_data['type'], {})[req_data['id']] = rsp_data['id']
+        if 'id' in req_data and 'id' in rsp_data:
+            self.mapping.setdefault(
+                req_data['type'], {}
+            )[req_data['id']] = rsp_data['id']
 
     def should_rewrite(self, request):
         method = request.get('method', '')
