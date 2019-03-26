@@ -11,8 +11,10 @@ class BadBatchRequest(Exception):
     '''
         Raised when client sends an invalid batch request.
     '''
-    def __init__(self, *args, **kwargs):
+    def __init__(self, message, results=None, requests=None, *args, **kwargs):
         '''
             Initialize.
         '''
-        Exception.__init__(self, *args, **kwargs)
+        self.requests = requests
+        self.results = results
+        Exception.__init__(self, message, *args, **kwargs)

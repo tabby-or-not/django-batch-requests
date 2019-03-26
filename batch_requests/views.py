@@ -65,12 +65,12 @@ def get_response(wsgi_request):
     except Http404 as error:
         return {'status_code': 404, 'reason_phrase': 'Page not found'}
 
-    # Let the view do his task.
+    # Let the view do its task.
     kwargs.update({'request': wsgi_request})
     try:
         response = view(*args, **kwargs)
     except Exception as exc:
-        response = HttpResponseServerError(content=str(exc))
+        response = {'status_code': 500, 'reason_phrase': str(exc)}
 
     # Make sure that the response has been rendered
     if hasattr(response, 'render') and callable(response.render):
@@ -194,8 +194,8 @@ def execute_requests(request, sequential_override=False):
                 results.append(result)
                 if is_error(result['status_code']):
                     raise BadBatchRequest(
-                        f'Sequential requests failed for request at index {i}: ' +
-                        json.dumps(result['body'])
+                        f'Sequential requests failed for request at index {i}',
+                        results, requests
                     )
 
                 # Add the response to the rewriter.
@@ -237,9 +237,16 @@ def handle_batch_requests(request, *args, **kwargs):
     try:
         response = execute_requests(request, sequential_override)
     except BadBatchRequest as brx:
-        return HttpResponseBadRequest(content=str(brx))
+        # Get results and requests from batch error and populate
+        results = brx.results or []
+        while len(results) < len(brx.requests):
+            results.append({
+                'status_code': 424,
+                'reason_phrase': "This request was cancelled as it depended on a previous request which did not succeed.",
+            })
+        response = results
 
-    # Evrything's done, return the response.
+    # Everything's done, return the response.
     resp = HttpResponse(content=json.dumps(response), content_type='application/json')
 
     if _settings.ADD_DURATION_HEADER:
