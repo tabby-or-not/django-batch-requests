@@ -101,7 +101,11 @@ def get_wsgi_request_object(curr_request, method, url, headers, body):
 
     data = body
     if data:
-        data = json.dumps(data)
+        # Check if data is already JSON
+        try:
+            json.loads(data)
+        except (json.decoder.JSONDecodeError, TypeError) as e:
+            data = json.dumps(data)
         x_headers['CONTENT_LENGTH'] = len(data)
     else:
         if 'CONTENT_LENGTH' in x_headers:
