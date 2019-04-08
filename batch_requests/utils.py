@@ -6,7 +6,9 @@
 import json
 
 from batch_requests.settings import br_settings as _settings
+from django.conf import settings
 from django.test.client import FakePayload, RequestFactory
+from django.utils.encoding import force_bytes
 
 
 class BatchRequestFactory(RequestFactory):
@@ -106,7 +108,9 @@ def get_wsgi_request_object(curr_request, method, url, headers, body):
             json.loads(data)
         except (json.decoder.JSONDecodeError, TypeError) as e:
             data = json.dumps(data)
-        x_headers['CONTENT_LENGTH'] = len(data)
+
+        # https://github.com/django/django/blob/c84b91b7603e488f7171fdff8f08368ef3d6b856/django/test/client.py#L402
+        x_headers['CONTENT_LENGTH'] = len(force_bytes(data, settings.DEFAULT_CHARSET))
     else:
         if 'CONTENT_LENGTH' in x_headers:
             x_headers.pop('CONTENT_LENGTH')
