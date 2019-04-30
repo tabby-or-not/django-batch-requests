@@ -7,10 +7,6 @@
 import json
 from datetime import datetime
 
-from batch_requests.exceptions import BadBatchRequest
-from batch_requests.jsonapi import JsonApiRewriter
-from batch_requests.settings import br_settings as _settings
-from batch_requests.utils import get_wsgi_request_object
 from django.db import transaction
 from django.http import Http404
 from django.http.response import (HttpResponse, HttpResponseBadRequest,
@@ -18,6 +14,11 @@ from django.http.response import (HttpResponse, HttpResponseBadRequest,
 from django.urls import resolve
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+
+from batch_requests.exceptions import BadBatchRequest
+from batch_requests.jsonapi import JsonApiRewriter
+from batch_requests.settings import br_settings as _settings
+from batch_requests.utils import get_wsgi_request_object
 
 
 def withDebugHeaders(view_handler):
@@ -70,7 +71,7 @@ def get_response(wsgi_request):
     try:
         response = view(*args, **kwargs)
     except Exception as exc:
-        response = {'status_code': 500, 'reason_phrase': str(exc)}
+        return {'status_code': 500, 'reason_phrase': str(exc)}
 
     # Make sure that the response has been rendered
     if hasattr(response, 'render') and callable(response.render):
